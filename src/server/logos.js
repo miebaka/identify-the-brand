@@ -10,7 +10,6 @@ import logos from './logo-registry.js';
 import config from './config.js';
 
 let REGISTRY = null;
-const RASTER_CACHE = new Map();
 
 function assetPath(logo) {
   const dir = path.join(config.publicDir, 'assets', 'logos');
@@ -73,6 +72,11 @@ export function loadRegistry() {
 export function getLogo(id) { return loadRegistry().get(id); }
 export function allLogos() { return [...loadRegistry().values()]; }
 
+// Build a real SVG mask rather than painting opaque rectangles over a rasterised
+// copy of the logo. White areas in the mask remain visible; black areas are
+// transparent and therefore hide sections of the underlying vector artwork.
+// The mask is generated per question instance, so every presentation gets a
+// fresh obstruction pattern without changing the source SVG artwork.
 function buildObstructionMask(id, difficulty) {
   const count = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 7;
   const shapes = [];
@@ -87,7 +91,10 @@ function buildObstructionMask(id, difficulty) {
     shapes.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="#000"/>`);
   }
 
-  return `<g id="mask-${id}-${seed}" aria-hidden="true">${shapes.join('')}</g>`;
+  return {
+    id: `mask-${id}-${seed}`,
+    svg: `<mask id="mask-${id}-${seed}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800" aria-hidden="true"><rect x="0" y="0" width="800" height="800" fill="#fff"/>${shapes.join('')}</mask>`,
+  };
 }
 
 function whiteArtwork(inner) {
@@ -98,23 +105,20 @@ function whiteArtwork(inner) {
 }
 
 export function fragmentSvg(logo) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><g>${whiteArtwork(logo.asset.inner)}</g>${buildObstructionMask(logo.id, logo.difficulty)}</svg>`;
+  const mask = buildObstructionMask(logo.id, logo.difficulty);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Logo to identify"><defs>${mask.svg}</defs><g mask="url(#${mask.id})">${whiteArtwork(logo.asset.inner)}</g></svg>`;
 }
 
 export async function fragmentForClient(logo) {
-  // Do not cache fragments: the obstruction pattern is intentionally different
-  // for every question instance.
-  const sharp = (await import('sharp')).default;
-  const png = await sharp(Buffer.from(fragmentSvg(logo)), { density: 144 })
-    .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .png()
-    .toBuffer();
-  const uri = `data:image/png;base64,${png.toString('base64')}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><image width="800" height="800" href="${uri}"/></svg>`;
+  // Keep the fragment as SVG all the way to the browser. This preserves the
+  // actual vector artwork and the SVG mask, instead of rasterising it through
+  // Sharp and embedding a PNG. The existing API is async, so keep the function
+  // async for compatibility with its callers.
+  return fragmentSvg(logo);
 }
 
 export function fullSvg(logo) {
-  // The revealed artwork must use the same monochrome treatment as the masked
-  // artwork. Never expose the original source colours to the client.
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">${whiteArtwork(logo.asset.inner)}</svg>`;
+  // The revealed artwork uses the same monochrome treatment as the masked
+  // artwork. It is the original vector artwork with the mask removed.
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Revealed logo">${whiteArtwork(logo.asset.inner)}</svg>`;
 }
