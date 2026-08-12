@@ -1,5 +1,6 @@
-// IDENTIFY THE BRAND — Express bootstrap.
-// Security (Helmet), compression, rate limiting, static hosting, JSON API.
+// IDENTIFY THE BRAND — Express application + local development bootstrap.
+// In production on Netlify, the same Express app is wrapped by
+// netlify/functions/api.js and invoked as a serverless function.
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -11,30 +12,16 @@ import { initPersistence, startJanitor } from './src/server/store.js';
 import apiRouter from './src/server/routes/api.js';
 import adminRouter from './src/server/routes/admin.js';
 
-// Fail loudly on insecure production config; warn in development.
 const warnings = assertProductionSecrets();
 if (warnings.length && !config.isProd) {
   console.warn('[warn] Insecure admin config (fine for local dev):');
   for (const w of warnings) console.warn('   - ' + w);
 }
 
-// Validate the logo registry + prepare the persistence backend (local CSV, and
-// the Google Sheets tabs when configured) BEFORE serving traffic. Top-level
-// await is supported in ES modules.
-try {
-  await initPersistence();
-} catch (err) {
-  console.error('[fatal] Startup validation failed:\n' + err.message);
-  process.exit(1);
-}
-startJanitor();
-
 const app = express();
-if (config.trustProxy) app.set('trust proxy', 1);
+if (config.trustProxy || process.env.NETLIFY) app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
-// Content Security Policy: allow inline styles (design tokens) + our own SVG.
-// No third-party scripts. Fonts self-hosted or system.
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -56,10 +43,9 @@ app.use(
 app.use(compression());
 app.use(express.json({ limit: '16kb' }));
 
-// Global API rate limit (gameplay). Generous but abuse-resistant.
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 240, // ~4 req/s per IP sustained
+  max: 240,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },
@@ -69,11 +55,8 @@ app.use('/api/', apiLimiter);
 app.use('/api', apiRouter);
 app.use('/api/admin', adminRouter);
 
-// Health check.
 app.get('/healthz', (req, res) => res.json({ ok: true }));
 
-// Static assets. Backups are inside data/, never under public/, so they are
-// not web-exposed (spec §28).
 app.use(
   express.static(config.publicDir, {
     setHeaders: (res, filePath) => {
@@ -88,25 +71,19 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(config.publicDir, 'admin.html'));
 });
 
-// SPA fallback for the game (single page).
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(config.publicDir, 'index.html'));
 });
 
-// JSON 404 for unknown API routes.
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 
-// Central error handler — never leak stack traces to players (spec §21).
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('[error]', err.message);
   if (res.headersSent) return;
   res.status(500).json({ error: 'Something went wrong. Please try again.' });
 });
 
-// Last-resort safety net: log rather than crash the game server on a stray
-// async error. Route-level errors are already funneled to the error handler.
 process.on('unhandledRejection', (reason) => {
   console.error('[unhandledRejection]', reason instanceof Error ? reason.message : reason);
 });
@@ -114,8 +91,29 @@ process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err.message);
 });
 
-app.listen(config.port, () => {
-  console.log(`IDENTIFY THE BRAND running on http://localhost:${config.port}`);
-  console.log(`  env=${config.env}  dataDir=${config.dataDir}`);
-  console.log(`  admin dashboard: http://localhost:${config.port}/admin`);
-});
+// Initialise persistence once per warm serverless runtime. Netlify functions
+// are ephemeral, so the durable Google Sheets backend should be configured in
+// production. Local CSV remains useful for local development/fallback.
+const ready = initPersistence()
+  .then(() => {
+    startJanitor();
+  })
+  .catch((err) => {
+    console.error('[fatal] Startup validation failed:\n' + err.message);
+    throw err;
+  });
+
+app.locals.ready = ready;
+
+// Only open a TCP listener when running the traditional local Express server.
+// Netlify imports this module and supplies its own serverless HTTP adapter.
+if (!process.env.NETLIFY) {
+  await ready;
+  app.listen(config.port, () => {
+    console.log(`IDENTIFY THE BRAND running on http://localhost:${config.port}`);
+    console.log(`  env=${config.env}  dataDir=${config.dataDir}`);
+    console.log(`  admin dashboard: http://localhost:${config.port}/admin`);
+  });
+}
+
+export default app;
