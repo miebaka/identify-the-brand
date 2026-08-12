@@ -5,6 +5,10 @@
     "api/index.js": {
       "includeFiles": "public/assets/logos/**",
       "maxDuration": 60
+    },
+    "api/[...path].js": {
+      "includeFiles": "public/assets/logos/**",
+      "maxDuration": 60
     }
   }
 }
