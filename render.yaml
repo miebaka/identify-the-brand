@@ -1,0 +1,45 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: push this repo, then at https://dashboard.render.com/blueprints
+# click "New Blueprint Instance", pick this repo, and apply.
+#
+# NOTE ON PERSISTENCE: the CSV leaderboard needs a persistent disk, and Render
+# disks require a paid instance (Starter, ~$7/mo). The disk is mounted at
+# /var/data (OUTSIDE the repo) and DATA_DIR points there, so it never shadows
+# the committed data/logos.json registry.
+#
+# FREE-TIER ALTERNATIVE: set `plan: free` and delete the `disk:` block below.
+# The app still runs, but gameplay CSV lives on ephemeral storage and resets on
+# every restart/redeploy — export scores promptly, or stay on the paid disk.
+
+services:
+  - type: web
+    name: identify-the-brand
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATA_DIR
+        value: /var/data
+      - key: RETENTION_DAYS
+        value: "90"
+      - key: ADMIN_USER
+        value: admin
+      # Set your own strong password when Render prompts during blueprint apply.
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Auto-generated once and kept stable by Render (signs admin tokens).
+      - key: ADMIN_TOKEN_SECRET
+        generateValue: true
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1

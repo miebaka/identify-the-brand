@@ -140,7 +140,7 @@ function validateLogo(logo, idx) {
 // Validate the whole registry against the authoritative distribution.
 export function loadRegistry() {
   if (REGISTRY) return REGISTRY;
-  const file = path.join(config.dataDir, 'logos.json');
+  const file = config.logosFile;
   const raw = fs.readFileSync(file, 'utf8');
   const logos = JSON.parse(raw);
   if (!Array.isArray(logos)) throw new Error('logos.json must be an array');

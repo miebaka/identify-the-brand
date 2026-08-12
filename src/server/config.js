@@ -26,7 +26,16 @@ const config = {
   port: Number(process.env.PORT) || 3000,
   trustProxy: bool(process.env.TRUST_PROXY, false),
 
+  // Writable persistence dir (CSV + backups). On a host with a mounted disk,
+  // set DATA_DIR to an absolute path OUTSIDE the repo (e.g. /var/data) so the
+  // disk mount does not shadow the committed logo registry below.
   dataDir: path.resolve(ROOT, process.env.DATA_DIR || './data'),
+  // The logo registry is read-only and ships in the repo, so it is resolved
+  // independently of DATA_DIR (a disk mounted at ./data must not hide it).
+  logosFile: path.resolve(
+    ROOT,
+    process.env.LOGOS_FILE || path.join('data', 'logos.json'),
+  ),
   publicDir: path.resolve(ROOT, 'public'),
 
   retentionDays: Number(process.env.RETENTION_DAYS) || 90,
