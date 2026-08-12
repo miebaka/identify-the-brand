@@ -8,7 +8,8 @@ export function normalize(input) {
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/['’`.,!?/\\_-]/g, ' ')
+    .replace(/['’`]/g, '')
+    .replace(/[.,!?/\\_-]/g, ' ')
     .replace(/&/g, ' and ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -41,8 +42,6 @@ export function isCorrect(rawAnswer, acceptableAnswers) {
   });
 }
 
-// Fisher-Yates with crypto.randomInt. Quiz ordering does not need secrecy, but
-// using a CSPRNG removes biased/predictable Math.random() behaviour entirely.
 export function shuffle(array) {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
@@ -52,8 +51,6 @@ export function shuffle(array) {
   return result;
 }
 
-// Weighted random interleaving prevents adjacent repeats and avoids obvious
-// Easy→Medium→Hard blocks while still allowing each tier to appear naturally.
 export function interleaveByDifficulty(logos) {
   const buckets = {
     easy: shuffle(logos.filter((l) => l.difficulty === 'easy')),
@@ -68,18 +65,13 @@ export function interleaveByDifficulty(logos) {
     const available = Object.keys(buckets).filter((d) => remaining[d] > 0);
     let candidates = available.filter((d) => d !== previous);
     if (!candidates.length) candidates = available;
-
     const total = candidates.reduce((sum, d) => sum + remaining[d], 0);
     let pick = randomInt(total);
     let chosen = candidates[candidates.length - 1];
     for (const d of candidates) {
-      if (pick < remaining[d]) {
-        chosen = d;
-        break;
-      }
+      if (pick < remaining[d]) { chosen = d; break; }
       pick -= remaining[d];
     }
-
     result.push(buckets[chosen].pop());
     remaining[chosen] -= 1;
     previous = chosen;
@@ -97,7 +89,6 @@ export function tallyScore(answers) {
     medium: { correct: 0, total: 0, earned: 0, possible: 0 },
     hard: { correct: 0, total: 0, earned: 0, possible: 0 },
   };
-
   for (const a of answers) {
     const d = byDifficulty[a.difficulty];
     d.total += 1;
@@ -110,7 +101,6 @@ export function tallyScore(answers) {
       d.earned += a.pointsEarned;
     } else incorrect += 1;
   }
-
   const percentage = Math.round((score / config.game.totalPossibleScore) * 100);
   return { score, correct, incorrect, timedOut, percentage, byDifficulty };
 }
