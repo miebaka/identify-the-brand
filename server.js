@@ -18,9 +18,11 @@ if (warnings.length && !config.isProd) {
   for (const w of warnings) console.warn('   - ' + w);
 }
 
-// Validate the logo registry + ensure CSV files exist BEFORE serving traffic.
+// Validate the logo registry + prepare the persistence backend (local CSV, and
+// the Google Sheets tabs when configured) BEFORE serving traffic. Top-level
+// await is supported in ES modules.
 try {
-  initPersistence();
+  await initPersistence();
 } catch (err) {
   console.error('[fatal] Startup validation failed:\n' + err.message);
   process.exit(1);

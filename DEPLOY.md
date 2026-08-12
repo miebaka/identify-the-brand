@@ -33,13 +33,27 @@ the exact URL). Admin dashboard: `…/admin`. Health check: `…/healthz`.
 | `ADMIN_TOKEN_SECRET: generateValue` | Render generates it once and keeps it stable, so admin tokens survive restarts. |
 | `healthCheckPath: /healthz` | Render only routes traffic once the app reports healthy. |
 
-## Free-tier alternative (no persistent data)
+## Free tier + Google Sheets (recommended if you want to skip the paid disk)
 
-Render disks require a paid instance (~$7/mo). To run on the **free** tier
-instead, edit `render.yaml`: set `plan: free` and delete the `disk:` block. The
-game still works, but the CSV lives on ephemeral storage and **resets on every
-restart/redeploy** — fine for a demo, not for a real leaderboard. Export scores
-from the admin dashboard before any redeploy.
+Render disks require a paid instance (~$7/mo). To run on the **free** tier with
+durable data, store gameplay in a **Google Sheet** instead of on disk (see
+[SHEETS.md](SHEETS.md) — a copy-paste Apps Script webhook, no Google Cloud, no
+keys). Then:
+
+1. In `render.yaml`, set `plan: free` and delete the `disk:` block (and you can
+   drop the `DATA_DIR` var — local CSV becomes an ephemeral mirror only).
+2. In the Render dashboard's **Environment** tab, add `SHEETS_WEBHOOK_URL` and
+   `SHEETS_SECRET` from the Sheets setup.
+
+Now the leaderboard and exports read from the Sheet, so they survive restarts
+and redeploys with zero persistent disk — and the operator sees every score
+directly in Google Sheets.
+
+### Free tier without Google Sheets (ephemeral)
+
+If you skip both the disk and Sheets, the game still runs, but the CSV lives on
+ephemeral storage and **resets on every restart/redeploy** — fine for a quick
+demo only. Export scores from the admin dashboard before any redeploy.
 
 ## After deploy — smoke test
 

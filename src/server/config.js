@@ -46,6 +46,18 @@ const config = {
     tokenSecret: process.env.ADMIN_TOKEN_SECRET || '',
   },
 
+  // Optional Google Sheets backend. When both are set, gameplay records are
+  // written to a Google Sheet (durable, operator-visible) via an Apps Script
+  // webhook, and the leaderboard/exports read from it — no persistent disk
+  // required. When unset, the app uses local CSV files (default). See SHEETS.md.
+  sheets: {
+    url: process.env.SHEETS_WEBHOOK_URL || '',
+    secret: process.env.SHEETS_SECRET || '',
+    get enabled() {
+      return !!(this.url && this.secret);
+    },
+  },
+
   // Authoritative game parameters (see spec "CRITICAL GAME PARAMETERS").
   //
   // MAXIMUM SCORE is DERIVED from the distribution + points (single source of

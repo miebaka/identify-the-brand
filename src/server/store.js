@@ -8,50 +8,19 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import config from './config.js';
-import { CsvTable, buildCsvExport } from './csv.js';
+import * as persistence from './persistence.js';
 import { loadRegistry, getLogo, allLogos } from './logos.js';
 import { interleaveByDifficulty, isCorrect, tallyScore } from './game.js';
 
 const SESSIONS = new Map();
 
-const sessionsCsv = new CsvTable(path.join(config.dataDir, 'sessions.csv'), [
-  'session_id',
-  'first_name',
-  'surname',
-  'created_at',
-  'started_at',
-  'completed_at',
-  'status',
-  'score',
-  'total_possible',
-  'percentage',
-  'correct_answers',
-  'incorrect_answers',
-  'timed_out',
-]);
-
-const answersCsv = new CsvTable(path.join(config.dataDir, 'answers.csv'), [
-  'session_id',
-  'question_number',
-  'logo_id',
-  'brand',
-  'difficulty',
-  'points_possible',
-  'points_earned',
-  'answer_given',
-  'correct',
-  'elapsed_ms',
-  'time_remaining_ms',
-  'submitted_at',
-]);
-
 let writeCounter = 0;
 
-// Initialize persistence: validate logo registry + CSV headers, create files.
-export function initPersistence() {
+// Initialize persistence: validate logo registry + prepare the backend
+// (local CSV files, and the Google Sheets tabs when configured).
+export async function initPersistence() {
   loadRegistry();
-  sessionsCsv.ensure();
-  answersCsv.ensure();
+  await persistence.init();
 }
 
 // Periodically prune abandoned in-memory sessions so memory can't grow forever.
@@ -174,7 +143,7 @@ export async function recordSubmission(session, logoId, rawAnswer, opts = {}) {
   session.submittedLogoIds.add(logoId);
   session.lastTouch = Date.now();
 
-  await answersCsv.append({
+  await persistence.appendAnswer({
     session_id: session.sessionId,
     question_number: answer.questionNumber,
     logo_id: answer.logoId,
@@ -215,7 +184,7 @@ export async function completeSession(session) {
   const totals = tallyScore(session.answers);
   session.totals = totals;
 
-  await sessionsCsv.append({
+  await persistence.appendSession({
     session_id: session.sessionId,
     first_name: session.firstName,
     surname: session.surname,
@@ -263,34 +232,30 @@ export function summarize(session) {
   };
 }
 
-// ---- Backups (spec §28): copy CSVs after every N writes. ----
+// ---- Local CSV backups (spec §28): copy after every N writes. ----
 async function maybeBackup(force = false) {
   writeCounter += 1;
   if (!force && writeCounter % 50 !== 0) return;
   const dir = path.join(config.dataDir, 'backups');
   try {
-    await sessionsCsv.backup(dir);
-    await answersCsv.backup(dir);
+    await persistence.backup(dir);
   } catch {
     // Backup failure is non-fatal; primary write already succeeded.
   }
 }
 
-// ---- Reads for leaderboard + admin (from CSV, the durable record). ----
+// ---- Reads for leaderboard + admin (from the authoritative backend). ----
 export async function readSessionRows() {
-  return sessionsCsv.readAll();
+  return persistence.readSessions();
 }
 export async function readAnswerRows() {
-  return answersCsv.readAll();
+  return persistence.readAnswers();
 }
 
 // Raw export helpers (Excel-friendly with BOM).
 export async function exportSessionsCsv() {
-  const rows = await sessionsCsv.readAll();
-  return buildCsvExport(sessionsCsv.header, rows);
+  return persistence.exportSessionsCsv();
 }
 export async function exportAnswersCsv() {
-  const rows = await answersCsv.readAll();
-  return buildCsvExport(answersCsv.header, rows);
+  return persistence.exportAnswersCsv();
 }
-export { sessionsCsv, answersCsv };

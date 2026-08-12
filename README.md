@@ -85,6 +85,18 @@ exact match always wins; Levenshtein distance 1 is allowed only for accepted
 answers ≥ 6 characters, to avoid false positives on short brands. See
 `src/server/game.js`.
 
+### Persistence backends (CSV or Google Sheets)
+
+Storage is pluggable behind `src/server/persistence.js`:
+
+- **Local CSV (default):** `data/sessions.csv` + `data/answers.csv`, injection-safe
+  with serialized writes. Needs persistent disk in production.
+- **Google Sheets (optional):** set `SHEETS_WEBHOOK_URL` + `SHEETS_SECRET` and
+  gameplay is written to a Google Sheet via an Apps Script webhook, with the
+  leaderboard/exports reading from it — **no persistent disk required**, so it
+  runs on free-tier hosting and the operator sees scores directly in Sheets. See
+  [SHEETS.md](SHEETS.md). A local CSV mirror is still kept per instance.
+
 ### CSV integrity
 
 `src/server/csv.js` provides one serialized write-queue per file (no torn
