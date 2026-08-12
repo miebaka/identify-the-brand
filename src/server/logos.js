@@ -1,6 +1,5 @@
 // Logo registry + server-side SVG fragmentation.
-// The production artwork source is public/assets/logos/*.svg only. Registry
-// metadata contains identity, difficulty and masking instructions, not artwork.
+// Production artwork comes only from public/assets/logos/*.svg.
 import fs from 'node:fs';
 import path from 'node:path';
 import config from './config.js';
@@ -12,6 +11,7 @@ function assetPath(logo) {
   const dir = path.join(config.publicDir, 'assets', 'logos');
   const brand = logo.brand;
   const candidates = [
+    logo.assetFile,
     `${logo.id}.svg`,
     `${brand}_black.svg`,
     `${brand}.svg`,
@@ -19,7 +19,7 @@ function assetPath(logo) {
     `${brand.replace(/\s+/g, '')}_black.svg`,
     `${brand.toLowerCase()}_black.svg`,
     `${brand.toLowerCase()}.svg`,
-  ];
+  ].filter(Boolean);
   for (const name of [...new Set(candidates)]) {
     const p = path.join(dir, name);
     if (fs.existsSync(p)) return p;
