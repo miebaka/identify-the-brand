@@ -57,43 +57,41 @@ export async function init() {
   sessionsCsv.ensure();
   answersCsv.ensure();
   if (useSheets) {
-    try {
-      await sheets.ensureTabs({ sessions: SESSION_HEADER, answers: ANSWER_HEADER });
-      console.log('[persistence] Google Sheets backend active.');
-    } catch (err) {
-      // Non-fatal: the game still runs on the local CSV mirror. Surface loudly
-      // so the operator fixes the webhook.
-      console.warn(
-        `[warn] Google Sheets webhook unreachable at startup (${err.message}). ` +
-          'Falling back to local CSV until it is reachable.',
+    console.log('[persistence] Google Sheets backend enabled.');
+    // Ensure the tabs exist, but do NOT block server startup on a network
+    // round-trip to Google (keeps cold starts fast and health checks green).
+    // Tabs are also auto-created on the first write, so this is best-effort.
+    sheets
+      .ensureTabs({ sessions: SESSION_HEADER, answers: ANSWER_HEADER })
+      .then(() => console.log('[persistence] Google Sheets connected.'))
+      .catch((err) =>
+        console.warn(
+          `[warn] Google Sheets webhook not reachable yet (${err.message}). ` +
+            'Writes will retry; local CSV mirror is active meanwhile.',
+        ),
       );
-    }
   }
 }
 
-// Append helpers. The local CSV append is awaited (fast, serialized); the Sheets
-// append is best-effort so a webhook hiccup never blocks or fails a player's
-// submission — failures are logged for the operator.
+// Append helpers. The local CSV append is awaited (fast, serialized). The Sheets
+// write is fire-and-forget: gameplay latency never depends on Google's network,
+// and a webhook hiccup can't block or fail a player's submission. Failures are
+// logged for the operator; the local CSV mirror still holds the row.
+function mirrorToSheet(tab, record) {
+  if (!useSheets) return;
+  sheets
+    .appendRow(tab, record)
+    .catch((err) => console.warn(`[warn] Sheets append (${tab}) failed: ${err.message}`));
+}
+
 export async function appendSession(record) {
   await sessionsCsv.append(record);
-  if (useSheets) {
-    try {
-      await sheets.appendRow('sessions', record);
-    } catch (err) {
-      console.warn(`[warn] Sheets appendSession failed: ${err.message}`);
-    }
-  }
+  mirrorToSheet('sessions', record);
 }
 
 export async function appendAnswer(record) {
   await answersCsv.append(record);
-  if (useSheets) {
-    try {
-      await sheets.appendRow('answers', record);
-    } catch (err) {
-      console.warn(`[warn] Sheets appendAnswer failed: ${err.message}`);
-    }
-  }
+  mirrorToSheet('answers', record);
 }
 
 // Reads come from the source of truth: Sheets when enabled, else local CSV.
