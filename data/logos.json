@@ -19,5 +19,5 @@
   {"id":"rolex-001","brand":"Rolex","difficulty":"hard","points":3,"acceptableAnswers":["rolex"],"reveal":[{"x":280,"y":220,"w":260,"h":260},{"x":360,"y":450,"w":100,"h":150}]},
   {"id":"liverpool-001","brand":"Liverpool","difficulty":"hard","points":3,"acceptableAnswers":["liverpool","liverpool fc","liverpool football club"],"reveal":[{"x":240,"y":230,"w":260,"h":300},{"x":430,"y":380,"w":180,"h":180}]},
   {"id":"quaker-001","brand":"Quaker","difficulty":"hard","points":3,"acceptableAnswers":["quaker"],"reveal":[{"x":250,"y":230,"w":260,"h":330},{"x":430,"y":300,"w":170,"h":190}]},
-  {"id":"warner-bros-001","brand":"Warner Bros.","difficulty":"hard","points":3,"acceptableAnswers":["warner bros","warner bros.","warner brothers","wb"],"reveal":[{"x":280,"y":230,"w":250,"h":300},{"x":430,"y":420,"w":170,"h":140}]}
+  {"id":"warner-bros-001","brand":"Warner Bros.","assetFile":"WB_black.svg","difficulty":"hard","points":3,"acceptableAnswers":["warner bros","warner bros.","warner brothers","wb"],"reveal":[{"x":280,"y":230,"w":250,"h":300},{"x":430,"y":420,"w":170,"h":140}]}
 ]
