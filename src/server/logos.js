@@ -5,6 +5,7 @@
 // data files exist at /var/task.
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomInt } from 'node:crypto';
 import logos from './logo-registry.js';
 import config from './config.js';
 
@@ -72,31 +73,48 @@ export function loadRegistry() {
 export function getLogo(id) { return loadRegistry().get(id); }
 export function allLogos() { return [...loadRegistry().values()]; }
 
-function buildMask(regions, id) {
-  const shapes = regions.map((r) => r.r !== undefined ? `<circle cx="${r.cx}" cy="${r.cy}" r="${r.r}" fill="white"/>` : `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"${r.rx ? ` rx="${r.rx}"` : ''} fill="white"/>`).join('');
-  return `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800"><rect width="800" height="800" fill="black"/>${shapes}</mask>`;
+// Generate a fresh obstruction pattern for each question. The logo remains a
+// complete white SVG underneath; the dark shapes sit above it and obscure
+// sections. This makes the challenge feel like a physical mask rather than a
+// logo that has been permanently cut into pieces. The server chooses the
+// pattern so refreshes/replays do not produce the same obstruction every time.
+function buildObstructionMask(id, difficulty) {
+  const count = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 7;
+  const shapes = [];
+  const seed = randomInt(1_000_000);
+
+  for (let i = 0; i < count; i += 1) {
+    const x = randomInt(80, 610);
+    const y = randomInt(80, 610);
+    const w = randomInt(90, difficulty === 'hard' ? 260 : 220);
+    const h = randomInt(70, difficulty === 'hard' ? 220 : 190);
+    const rx = randomInt(0, 18);
+    shapes.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="#000"/>`);
+  }
+
+  return `<g id="mask-${id}-${seed}" aria-hidden="true">${shapes.join('')}</g>`;
 }
 
-// The gameplay artwork is always rendered as a clean white silhouette.
-// This deliberately affects only the fragmented/reveal SVG. The original
-// source SVG remains untouched and is still used by fullSvg() for the answer.
-function whiteSvgArtwork(inner) {
+function whiteArtwork(inner) {
+  // CSS !important is used so source SVG presentation attributes cannot
+  // override the monochrome gameplay treatment.
   return `<style>*{fill:#fff !important;stroke:#fff !important;color:#fff !important}</style>${inner}`;
 }
 
 export function fragmentSvg(logo) {
-  const maskId = `mask-${logo.id}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><defs>${buildMask(logo.reveal, maskId)}</defs><g mask="url(#${maskId})">${whiteSvgArtwork(logo.asset.inner)}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><g>${whiteArtwork(logo.asset.inner)}</g>${buildObstructionMask(logo.id, logo.difficulty)}</svg>`;
 }
 
 export async function fragmentForClient(logo) {
-  if (RASTER_CACHE.has(logo.id)) return RASTER_CACHE.get(logo.id);
+  // Do not cache fragments: the obstruction pattern is intentionally different
+  // for every question instance. Full logo artwork remains server-controlled.
   const sharp = (await import('sharp')).default;
-  const png = await sharp(Buffer.from(fragmentSvg(logo)), { density: 144 }).resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } }).grayscale().threshold(128).png().toBuffer();
+  const png = await sharp(Buffer.from(fragmentSvg(logo)), { density: 144 })
+    .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .png()
+    .toBuffer();
   const uri = `data:image/png;base64,${png.toString('base64')}`;
-  const out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><image width="800" height="800" href="${uri}"/></svg>`;
-  RASTER_CACHE.set(logo.id, out);
-  return out;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><image width="800" height="800" href="${uri}"/></svg>`;
 }
 
 export function fullSvg(logo) {
