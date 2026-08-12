@@ -5,7 +5,6 @@
 // data files exist at /var/task.
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomInt } from 'node:crypto';
 import logos from './logo-registry.js';
 import config from './config.js';
 
@@ -72,29 +71,14 @@ export function loadRegistry() {
 export function getLogo(id) { return loadRegistry().get(id); }
 export function allLogos() { return [...loadRegistry().values()]; }
 
-// Build a real SVG mask rather than painting opaque rectangles over a rasterised
-// copy of the logo. White areas in the mask remain visible; black areas are
-// transparent and therefore hide sections of the underlying vector artwork.
-// The mask is generated per question instance, so every presentation gets a
-// fresh obstruction pattern without changing the source SVG artwork.
-function buildObstructionMask(id, difficulty) {
-  const count = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 7;
-  const shapes = [];
-  const seed = randomInt(1_000_000);
-
-  for (let i = 0; i < count; i += 1) {
-    const x = randomInt(80, 610);
-    const y = randomInt(80, 610);
-    const w = randomInt(90, difficulty === 'hard' ? 260 : 220);
-    const h = randomInt(70, difficulty === 'hard' ? 220 : 190);
-    const rx = randomInt(0, 18);
-    shapes.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="#000"/>`);
-  }
-
-  return {
-    id: `mask-${id}-${seed}`,
-    svg: `<mask id="mask-${id}-${seed}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800" aria-hidden="true"><rect x="0" y="0" width="800" height="800" fill="#fff"/>${shapes.join('')}</mask>`,
-  };
+// Render the real SVG artwork in white and place one solid black rectangle
+// over a difficulty-controlled portion of the artwork. The rectangle is
+// intentionally simple: it is the only obstruction presented to the player.
+// Easy: 50% hidden. Medium: 66.666...% hidden. Hard: 75% hidden.
+function obstructionForDifficulty(difficulty) {
+  if (difficulty === 'easy') return { x: 400, width: 400 };
+  if (difficulty === 'medium') return { x: 266.6667, width: 533.3333 };
+  return { x: 200, width: 600 };
 }
 
 function whiteArtwork(inner) {
@@ -105,20 +89,18 @@ function whiteArtwork(inner) {
 }
 
 export function fragmentSvg(logo) {
-  const mask = buildObstructionMask(logo.id, logo.difficulty);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Logo to identify"><defs>${mask.svg}</defs><g mask="url(#${mask.id})">${whiteArtwork(logo.asset.inner)}</g></svg>`;
+  const obstruction = obstructionForDifficulty(logo.difficulty);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Logo to identify"><g>${whiteArtwork(logo.asset.inner)}</g><rect class="logo-obstruction" x="${obstruction.x}" y="0" width="${obstruction.width}" height="800" fill="#000"/></svg>`;
 }
 
 export async function fragmentForClient(logo) {
   // Keep the fragment as SVG all the way to the browser. This preserves the
-  // actual vector artwork and the SVG mask, instead of rasterising it through
-  // Sharp and embedding a PNG. The existing API is async, so keep the function
-  // async for compatibility with its callers.
+  // actual vector artwork and the simple black obstruction in the browser.
   return fragmentSvg(logo);
 }
 
 export function fullSvg(logo) {
   // The revealed artwork uses the same monochrome treatment as the masked
-  // artwork. It is the original vector artwork with the mask removed.
+  // artwork. It is the original vector artwork with the obstruction removed.
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-label="Revealed logo">${whiteArtwork(logo.asset.inner)}</svg>`;
 }
