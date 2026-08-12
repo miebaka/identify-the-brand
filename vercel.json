@@ -4,9 +4,9 @@
   "functions": {
     "server.js": {
       "includeFiles": [
-        "data/**",
-        "public/assets/logos/**"
-      ]
+        "public/**"
+      ],
+      "maxDuration": 60
     }
   }
 }
