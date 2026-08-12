@@ -1,7 +1,10 @@
 // Logo registry + server-side SVG fragmentation.
 // Production artwork comes only from public/assets/logos/*.svg.
+// The registry is imported as a module so Vercel's function bundler includes
+// it reliably; do not depend on the serverless filesystem for logos.json.
 import fs from 'node:fs';
 import path from 'node:path';
+import logos from '../../data/logos.json' with { type: 'json' };
 import config from './config.js';
 
 let REGISTRY = null;
@@ -57,12 +60,14 @@ function validateLogo(logo, idx) {
 
 export function loadRegistry() {
   if (REGISTRY) return REGISTRY;
-  const logos = JSON.parse(fs.readFileSync(config.logosFile, 'utf8'));
   if (!Array.isArray(logos)) throw new Error('logos.json must be an array');
   const errors = [];
   const counts = { easy: 0, medium: 0, hard: 0 };
   const ids = new Set();
-  for (const [idx, logo] of logos.entries()) {
+  // Clone before attaching the processed SVG asset so the imported JSON module
+  // remains immutable and safe across warm serverless invocations.
+  const registryLogos = logos.map((logo) => ({ ...logo }));
+  for (const [idx, logo] of registryLogos.entries()) {
     errors.push(...validateLogo(logo, idx));
     if (ids.has(logo.id)) errors.push(`duplicate logo id "${logo.id}"`);
     ids.add(logo.id);
@@ -70,10 +75,10 @@ export function loadRegistry() {
     try { logo.asset = loadAsset(logo); } catch (err) { errors.push(err.message); }
   }
   for (const d of Object.keys(counts)) if (counts[d] !== config.game.distribution[d]) errors.push(`expected ${config.game.distribution[d]} ${d} logos, found ${counts[d]}`);
-  if (logos.length !== config.game.totalQuestions) errors.push(`expected ${config.game.totalQuestions} logos, found ${logos.length}`);
-  if (logos.reduce((s, l) => s + l.points, 0) !== config.game.totalPossibleScore) errors.push('logo points do not total the configured maximum score');
+  if (registryLogos.length !== config.game.totalQuestions) errors.push(`expected ${config.game.totalQuestions} logos, found ${registryLogos.length}`);
+  if (registryLogos.reduce((s, l) => s + l.points, 0) !== config.game.totalPossibleScore) errors.push('logo points do not total the configured maximum score');
   if (errors.length) throw new Error('Invalid logo registry:\n  - ' + errors.join('\n  - '));
-  REGISTRY = new Map(logos.map((l) => [l.id, l]));
+  REGISTRY = new Map(registryLogos.map((l) => [l.id, l]));
   return REGISTRY;
 }
 
@@ -87,7 +92,6 @@ function buildMask(regions, id) {
   return `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800"><rect width="800" height="800" fill="black"/>${shapes}</mask>`;
 }
 
-// Exported for the deployment validator: this is the canonical fragment renderer.
 export function fragmentSvg(logo) {
   const maskId = `mask-${logo.id}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><defs>${buildMask(logo.reveal, maskId)}</defs><g mask="url(#${maskId})">${logo.asset.inner}</g></svg>`;
