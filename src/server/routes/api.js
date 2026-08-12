@@ -9,21 +9,10 @@ import { leaderboardWithPlacement } from '../leaderboard.js';
 
 const router = express.Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
-
-// Registration is deliberately much tighter than normal gameplay traffic.
-// This protects the in-memory session store from cheap session-flood attacks.
-const registrationLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  limit: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many new games. Please wait a minute and try again.' },
-});
+const registrationLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many new games. Please wait a minute and try again.' } });
 
 function cleanName(v) { return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : ''; }
-function validName(v) {
-  return v.length >= 1 && v.length <= 60 && /^[\p{L}\p{M}][\p{L}\p{M} '.-]*$/u.test(v);
-}
+function validName(v) { return v.length >= 1 && v.length <= 60 && /^[\p{L}\p{M}][\p{L}\p{M} '.-]*$/u.test(v); }
 
 router.post('/register', registrationLimiter, (req, res) => {
   const firstName = cleanName(req.body?.firstName);
@@ -31,11 +20,7 @@ router.post('/register', registrationLimiter, (req, res) => {
   if (!validName(firstName) || !validName(surname)) return res.status(400).json({ error: 'Please enter a valid first name and surname.' });
   if (req.body?.consent !== true) return res.status(400).json({ error: 'Consent is required to play.' });
   const session = createSession(firstName, surname);
-  res.json({ sessionId: session.sessionId, player: { firstName }, game: {
-    totalQuestions: config.game.totalQuestions,
-    durationPerQuestionMs: config.game.durationPerQuestionMs,
-    totalPossibleScore: config.game.totalPossibleScore,
-  }});
+  res.json({ sessionId: session.sessionId, player: { firstName }, game: { totalQuestions: config.game.totalQuestions, durationPerQuestionMs: config.game.durationPerQuestionMs, totalPossibleScore: config.game.totalPossibleScore } });
 });
 
 async function questionPayload(q, session) {
@@ -46,7 +31,7 @@ async function questionPayload(q, session) {
     total: q.total,
     logoId: q.logoId,
     points: q.points,
-    durationMs: config.game.durationPerQuestionMs,
+    durationMs: Math.max(0, config.game.durationPerQuestionMs - elapsedMs),
     elapsedMs,
     fragmentSvg: await fragmentForClient(logo),
   };
@@ -56,20 +41,27 @@ router.post('/start', wrap(async (req, res) => {
   const session = getSession(req.body?.sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found. Please restart.' });
   if (session.status === 'completed') return res.status(409).json({ error: 'This game is already complete.' });
-  if (session.currentIndex >= 0) return res.status(409).json({ error: 'Game already started.' });
+  // Idempotent start: this is also the refresh/reconnect path. The browser may
+  // safely call /start again without creating a new question or resetting time.
+  if (session.currentIndex >= 0) {
+    const logoId = session.assignedLogos[session.currentIndex];
+    if (session.submittedLogoIds.has(logoId)) return res.status(409).json({ error: 'Current question has already been answered.' });
+    const q = { number: session.currentIndex + 1, total: session.assignedLogos.length, logoId, points: getLogo(logoId).points };
+    return res.json({ question: await questionPayload(q, session), resumed: true });
+  }
   const q = nextQuestion(session);
-  res.json({ question: await questionPayload(q, session) });
+  res.json({ question: await questionPayload(q, session), resumed: false });
 }));
 
-// Refresh/reconnect endpoint. The server retains the active session for 30
-// minutes; the browser can ask for the current authoritative state again.
 router.get('/resume/:sessionId', wrap(async (req, res) => {
   const session = getSession(req.params.sessionId);
   if (!session) return res.status(404).json({ error: 'Session expired. Please start a new game.' });
   if (session.status === 'completed') return res.json({ status: 'completed', results: { ...summarize(session), message: performanceMessage(session.totals?.score ?? 0) } });
-  if (session.currentIndex < 0) return res.json({ status: 'ready', player: { firstName: session.firstName, surname: session.surname }, game: { totalQuestions: config.game.totalQuestions, durationPerQuestionMs: config.game.durationPerQuestionMs, totalPossibleScore: config.game.totalPossibleScore } });
-  const q = { number: session.currentIndex + 1, total: session.assignedLogos.length, logoId: session.assignedLogos[session.currentIndex], points: getLogo(session.assignedLogos[session.currentIndex]).points };
-  return res.json({ status: 'playing', player: { firstName: session.firstName, surname: session.surname }, question: await questionPayload(q, session) });
+  const game = { totalQuestions: config.game.totalQuestions, durationPerQuestionMs: config.game.durationPerQuestionMs, totalPossibleScore: config.game.totalPossibleScore };
+  if (session.currentIndex < 0) return res.json({ status: 'ready', player: { firstName: session.firstName, surname: session.surname }, game });
+  const logoId = session.assignedLogos[session.currentIndex];
+  const q = { number: session.currentIndex + 1, total: session.assignedLogos.length, logoId, points: getLogo(logoId).points };
+  return res.json({ status: 'playing', player: { firstName: session.firstName, surname: session.surname }, game, question: await questionPayload(q, session) });
 }));
 
 router.post('/submit', wrap(async (req, res) => {
