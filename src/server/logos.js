@@ -77,9 +77,16 @@ function buildMask(regions, id) {
   return `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800"><rect width="800" height="800" fill="black"/>${shapes}</mask>`;
 }
 
+// The gameplay artwork is always rendered as a clean white silhouette.
+// This deliberately affects only the fragmented/reveal SVG. The original
+// source SVG remains untouched and is still used by fullSvg() for the answer.
+function whiteSvgArtwork(inner) {
+  return `<style>*{fill:#fff !important;stroke:#fff !important;color:#fff !important}</style>${inner}`;
+}
+
 export function fragmentSvg(logo) {
   const maskId = `mask-${logo.id}`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><defs>${buildMask(logo.reveal, maskId)}</defs><g mask="url(#${maskId})">${logo.asset.inner}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><defs>${buildMask(logo.reveal, maskId)}</defs><g mask="url(#${maskId})">${whiteSvgArtwork(logo.asset.inner)}</g></svg>`;
 }
 
 export async function fragmentForClient(logo) {
