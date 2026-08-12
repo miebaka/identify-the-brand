@@ -76,7 +76,7 @@ const config = {
       distribution.hard * points.hard;
     return {
       totalQuestions,
-      durationPerQuestionMs: 15000,
+      durationPerQuestionMs: 10000,
       // Small allowance for network latency so an answer that left the browser
       // just before 15.000s is not rejected by wire time. Timing remains
       // server-authoritative; this only widens the acceptance window slightly.

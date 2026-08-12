@@ -14,7 +14,7 @@ export class CountdownTimer {
     this._start = 0;
     this._expired = false;
     this._announced = new Set();
-    this._milestones = [10, 5, 2];
+    this._milestones = [5, 2];
   }
 
   start() {
