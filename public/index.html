@@ -11,62 +11,29 @@
     <link rel="stylesheet" href="/css/app.css" />
   </head>
   <body>
-    <!-- aria-live region for timer + feedback announcements (spec §52) -->
     <div id="live" class="sr-only" role="status" aria-live="assertive"></div>
-
     <div class="shell">
-      <!-- Top telemetry chrome -->
       <header class="chrome">
-        <div class="chrome__unit">
-          <span>[ IDENTIFY&nbsp;THE&nbsp;BRAND ]</span>
-          <span class="mono-red">REV&nbsp;1.0</span>
-        </div>
-        <div class="chrome__unit">
-          <span>STATE&nbsp;<b id="chrome-state">REGISTER</b></span>
-          <span>UNIT&nbsp;<b>ITB-20</b></span>
-        </div>
+        <div class="chrome__unit"><span>[ IDENTIFY&nbsp;THE&nbsp;BRAND ]</span><span class="mono-red">REV&nbsp;1.0</span></div>
+        <div class="chrome__unit"><span>STATE&nbsp;<b id="chrome-state">REGISTER</b></span><span>UNIT&nbsp;<b>ITB-21</b></span></div>
       </header>
-
       <main class="stage">
-        <!-- ============ REGISTER ============ -->
         <section class="screen" data-screen="register">
           <div class="reg__grid">
             <div class="reg__head">
               <div class="eyebrow">Visual Recognition Test</div>
               <h1 class="title">IDENTIFY<br />THE&nbsp;<span class="accent">BRAND</span></h1>
-              <div class="spec-line">
-                <span><b>21</b> logos</span>
-                <span>fragmented</span>
-                <span>black &amp; white</span>
-                <span><b>10</b> sec each</span>
-              </div>
+              <div class="spec-line"><span><b>21</b> logos</span><span>fragmented</span><span>black &amp; white</span><span><b>10</b> sec each</span></div>
             </div>
-
             <form id="reg-form" novalidate>
               <div class="field--row">
-                <div class="field">
-                  <label for="reg-first">First name</label>
-                  <input id="reg-first" type="text" maxlength="60" autocomplete="given-name" required />
-                </div>
-                <div class="field">
-                  <label for="reg-surname">Surname</label>
-                  <input id="reg-surname" type="text" maxlength="60" autocomplete="family-name" required />
-                </div>
+                <div class="field"><label for="reg-first">First name</label><input id="reg-first" type="text" maxlength="60" autocomplete="given-name" required /></div>
+                <div class="field"><label for="reg-surname">Surname</label><input id="reg-surname" type="text" maxlength="60" autocomplete="family-name" required /></div>
               </div>
-
-              <label class="consent" style="margin-top:var(--s6)">
-                <input id="reg-consent" type="checkbox" required />
-                <span>Your name and score will be stored and shown on the leaderboard.
-                  <a href="#privacy">What we collect →</a></span>
-              </label>
-
+              <label class="consent" style="margin-top:var(--s6)"><input id="reg-consent" type="checkbox" required /><span>Your name and score will be stored and shown on the leaderboard. <a href="#privacy">What we collect →</a></span></label>
               <div class="form-error" id="reg-error" role="alert" style="margin-top:var(--s4)"></div>
-
-              <button type="submit" class="btn btn--block" id="reg-submit" style="margin-top:var(--s4)">
-                Enter&nbsp;→
-              </button>
+              <button type="submit" class="btn btn--block" id="reg-submit" style="margin-top:var(--s4)">Enter&nbsp;→</button>
             </form>
-
             <details class="privacy" id="privacy">
               <summary>Data notice</summary>
               <p><b>Collected:</b> your first name, surname, gameplay answers, timing, and score.</p>
@@ -78,62 +45,23 @@
             </details>
           </div>
         </section>
-
-        <!-- ============ READY ============ -->
         <section class="screen" data-screen="ready">
           <div class="ready__grid">
-            <div>
-              <div class="eyebrow">Briefing</div>
-              <h2 class="title" style="font-size:clamp(2.4rem,9vw,4rem);margin-top:var(--s4)" id="ready-hi">Hi.</h2>
-            </div>
-            <p class="lede">
-              21 logos will appear one at a time. Each has been <strong>fragmented</strong>
-              and stripped of colour. You have <strong>10 seconds</strong> to identify each one.
-            </p>
-            <div class="scoring">
-              <div class="scoring__row"><span>Easy</span><b>1&nbsp;PT</b></div>
-              <div class="scoring__row"><span>Medium</span><b>2&nbsp;PT</b></div>
-              <div class="scoring__row"><span>Hard</span><b>3&nbsp;PT</b></div>
-              <div class="scoring__row scoring__row--max"><span>Maximum score</span><b id="ready-max">40</b></div>
-            </div>
+            <div><div class="eyebrow">Briefing</div><h2 class="title" style="font-size:clamp(2.4rem,9vw,4rem);margin-top:var(--s4)" id="ready-hi">Hi.</h2></div>
+            <p class="lede">21 logos will appear one at a time. Each has been <strong>fragmented</strong> and stripped of colour. You have <strong>10 seconds</strong> to identify each one.</p>
+            <div class="scoring"><div class="scoring__row"><span>Easy</span><b>1&nbsp;PT</b></div><div class="scoring__row"><span>Medium</span><b>2&nbsp;PT</b></div><div class="scoring__row"><span>Hard</span><b>3&nbsp;PT</b></div><div class="scoring__row scoring__row--max"><span>Maximum score</span><b id="ready-max">40</b></div></div>
             <button class="btn btn--block" id="ready-start">I'm Ready&nbsp;→</button>
           </div>
         </section>
-
-        <!-- ============ PLAYING (built by app.js) ============ -->
         <section class="screen" data-screen="playing"></section>
-
-        <!-- ============ RESULTS (built by app.js) ============ -->
         <section class="screen" data-screen="results"></section>
-
-        <!-- ============ LEADERBOARD (built by app.js) ============ -->
         <section class="screen" data-screen="leaderboard"></section>
-
-        <!-- ============ LOADING ============ -->
-        <section class="screen" data-screen="loading">
-          <div class="state-msg">
-            <div class="eyebrow">Processing</div>
-            <div class="title" style="font-size:clamp(2rem,8vw,3rem)">STAND&nbsp;BY<span class="blink">_</span></div>
-          </div>
-        </section>
-
-        <!-- ============ ERROR (built by app.js) ============ -->
+        <section class="screen" data-screen="loading"><div class="state-msg"><div class="eyebrow">Processing</div><div class="title" style="font-size:clamp(2rem,8vw,3rem)">STAND&nbsp;BY<span class="blink">_</span></div></div></section>
         <section class="screen" data-screen="error"></section>
       </main>
-
-      <!-- Bottom telemetry chrome -->
-      <footer class="chrome chrome--foot">
-        <div class="chrome__unit">
-          <span>© 2026</span>
-          <span>DECLASSIFIED&nbsp;IDENTITY&nbsp;ARCHIVE</span>
-        </div>
-        <div class="chrome__unit">
-          <button id="sound-toggle" class="btn btn--ghost" style="padding:2px 8px;font-size:9px;border:0;letter-spacing:0.14em">SND OFF</button>
-          <span>///</span>
-        </div>
-      </footer>
+      <footer class="chrome chrome--foot"><div class="chrome__unit"><span>© 2026</span><span>DECLASSIFIED&nbsp;IDENTITY&nbsp;ARCHIVE</span></div><div class="chrome__unit"><button id="sound-toggle" class="btn btn--ghost" style="padding:2px 8px;font-size:9px;border:0;letter-spacing:0.14em">SND OFF</button><span>///</span></div></footer>
     </div>
-
+    <script src="/js/recovery.js"></script>
     <script type="module" src="/js/app.js"></script>
   </body>
 </html>
