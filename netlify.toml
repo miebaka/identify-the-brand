@@ -1,11 +1,11 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
-  command = "npm run validate:logos && npm --prefix netlify/functions install --omit=dev"
+  command = "npm run validate:logos"
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["express", "sharp"]
+  external_node_modules = ["sharp"]
 
 [[redirects]]
   from = "/api/*"
@@ -19,7 +19,12 @@
   status = 200
   force = true
 
-# Client-side fallback only applies when a matching static file is absent.
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
