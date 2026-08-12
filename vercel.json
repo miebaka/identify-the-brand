@@ -2,10 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run validate:logos",
   "functions": {
-    "server.js": {
+    "api/index.js": {
       "includeFiles": [
-        "public/**",
-        "data/**"
+        "public/assets/logos/**"
       ],
       "maxDuration": 60
     }
