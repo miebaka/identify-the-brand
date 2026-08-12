@@ -1,9 +1,7 @@
-// Central configuration. Netlify Functions provide environment variables at runtime.
+// Central configuration for local Node/Express and Vercel.
 import path from 'node:path';
 import dotenv from 'dotenv';
 
-// Netlify and local Node both execute from the project root. Using cwd avoids
-// import.meta.url so the module can be safely bundled as CommonJS by Netlify.
 const ROOT = process.cwd();
 dotenv.config({ path: path.join(ROOT, '.env') });
 
@@ -14,15 +12,15 @@ function bool(v, def = false) {
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProd = NODE_ENV === 'production';
-const isNetlify = Boolean(process.env.NETLIFY || process.env.NETLIFY_FUNCTIONS_VERSION);
+const isVercel = Boolean(process.env.VERCEL);
 
 const config = {
   root: ROOT,
   env: NODE_ENV,
   isProd,
-  isNetlify,
+  isVercel,
   port: Number(process.env.PORT) || 3000,
-  trustProxy: bool(process.env.TRUST_PROXY, isNetlify),
+  trustProxy: bool(process.env.TRUST_PROXY, isVercel),
   dataDir: path.resolve(ROOT, process.env.DATA_DIR || './data'),
   logosFile: path.resolve(ROOT, process.env.LOGOS_FILE || path.join('data', 'logos.json')),
   publicDir: path.resolve(ROOT, 'public'),
