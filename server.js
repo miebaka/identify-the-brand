@@ -106,13 +106,18 @@ const ready = initPersistence()
 app.locals.ready = ready;
 
 // Only open a TCP listener when running the traditional local Express server.
-// Netlify imports this module and supplies its own serverless HTTP adapter.
+// Avoid top-level await so Netlify's esbuild/CommonJS function bundler can
+// package this module reliably.
 if (!process.env.NETLIFY) {
-  await ready;
-  app.listen(config.port, () => {
-    console.log(`IDENTIFY THE BRAND running on http://localhost:${config.port}`);
-    console.log(`  env=${config.env}  dataDir=${config.dataDir}`);
-    console.log(`  admin dashboard: http://localhost:${config.port}/admin`);
+  ready.then(() => {
+    app.listen(config.port, () => {
+      console.log(`IDENTIFY THE BRAND running on http://localhost:${config.port}`);
+      console.log(`  env=${config.env}  dataDir=${config.dataDir}`);
+      console.log(`  admin dashboard: http://localhost:${config.port}/admin`);
+    });
+  }).catch((err) => {
+    console.error('[fatal] Unable to start server:', err.message);
+    process.exitCode = 1;
   });
 }
 
