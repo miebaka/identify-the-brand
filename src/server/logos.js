@@ -1,23 +1,24 @@
 // Logo registry + server-side SVG fragmentation.
 // The production artwork source is public/assets/logos/*.svg only. Registry
-// metadata contains identity, difficulty and masking instructions; it does not
-// contain fallback/reconstructed artwork.
+// metadata contains identity, difficulty and masking instructions, not artwork.
 import fs from 'node:fs';
 import path from 'node:path';
 import config from './config.js';
 
 let REGISTRY = null;
-const VIEWBOX = 800;
 const RASTER_CACHE = new Map();
 
 function assetPath(logo) {
   const dir = path.join(config.publicDir, 'assets', 'logos');
+  const brand = logo.brand;
   const candidates = [
     `${logo.id}.svg`,
-    `${logo.brand}.svg`,
-    `${logo.brand.replace(/\s+/g, '_')}.svg`,
-    `${logo.brand.replace(/\s+/g, '')}.svg`,
-    `${logo.brand.toLowerCase()}.svg`,
+    `${brand}_black.svg`,
+    `${brand}.svg`,
+    `${brand.replace(/\s+/g, '_')}_black.svg`,
+    `${brand.replace(/\s+/g, '')}_black.svg`,
+    `${brand.toLowerCase()}_black.svg`,
+    `${brand.toLowerCase()}.svg`,
   ];
   for (const name of [...new Set(candidates)]) {
     const p = path.join(dir, name);
@@ -45,15 +46,12 @@ function loadAsset(logo) {
   const inner = raw.slice(start, end).trim();
   const vb = open[0].match(/viewBox\s*=\s*["']([^"']+)["']/i)?.[1]?.trim();
   if (!vb) throw new Error(`SVG asset for ${logo.id} must define viewBox`);
-  const [, x = '0', y = '0', w = '800', h = '800'] = vb.match(/(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s+([\d.]+)/) || [];
-  return { inner: `<svg x="0" y="0" width="800" height="800" viewBox="${x} ${y} ${w} ${h}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`, viewBox: vb };
+  return { inner: `<svg x="0" y="0" width="800" height="800" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>` };
 }
 
 function validateLogo(logo, idx) {
   const errors = [];
-  for (const key of ['id', 'brand', 'difficulty', 'points', 'reveal', 'acceptableAnswers']) {
-    if (logo[key] === undefined) errors.push(`logo[${idx}] missing "${key}"`);
-  }
+  for (const key of ['id', 'brand', 'difficulty', 'points', 'reveal', 'acceptableAnswers']) if (logo[key] === undefined) errors.push(`logo[${idx}] missing "${key}"`);
   if (!['easy', 'medium', 'hard'].includes(logo.difficulty)) errors.push(`logo[${idx}] invalid difficulty`);
   if (logo.points !== config.game.points[logo.difficulty]) errors.push(`logo[${idx}] points mismatch`);
   if (!Array.isArray(logo.reveal) || !logo.reveal.length) errors.push(`logo[${idx}] needs reveal regions`);
@@ -73,11 +71,7 @@ export function loadRegistry() {
     if (ids.has(logo.id)) errors.push(`duplicate logo id "${logo.id}"`);
     ids.add(logo.id);
     if (counts[logo.difficulty] !== undefined) counts[logo.difficulty] += 1;
-    try {
-      logo.asset = loadAsset(logo);
-    } catch (err) {
-      errors.push(err.message);
-    }
+    try { logo.asset = loadAsset(logo); } catch (err) { errors.push(err.message); }
   }
   for (const d of Object.keys(counts)) if (counts[d] !== config.game.distribution[d]) errors.push(`expected ${config.game.distribution[d]} ${d} logos, found ${counts[d]}`);
   if (logos.length !== config.game.totalQuestions) errors.push(`expected ${config.game.totalQuestions} logos, found ${logos.length}`);
@@ -117,7 +111,6 @@ export async function fragmentForClient(logo) {
   return out;
 }
 
-// Full artwork is only requested after an answer/timeout has been recorded.
 export function fullSvg(logo) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">${logo.asset.inner}</svg>`;
 }
