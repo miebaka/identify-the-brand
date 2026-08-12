@@ -32,9 +32,9 @@ local CSV copy per instance as a fallback.
    SHEETS_WEBHOOK_URL=<the Web app URL from step 5>
    SHEETS_SECRET=<the same SECRET from step 4>
    ```
-   Locally that's in `.env`; on Render it's the service's **Environment** tab.
+   Locally that's in `.env`; on a host it's the service's environment settings.
 
-On startup the server logs `[persistence] Google Sheets backend active.` and
+On startup the server logs `[persistence] Google Sheets backend enabled.` and
 your Sheet fills up as people play.
 
 ## How it behaves
@@ -48,12 +48,13 @@ your Sheet fills up as people play.
 - **Quotas:** Apps Script has generous free daily quotas; leaderboard reads are
   cached for a few seconds to stay well under them.
 
-## Using it on Render's free tier
+## Hosting with no disk
 
-With Sheets on, you don't need a persistent disk, so you can drop to the free
-plan. In `render.yaml`: set `plan: free` and delete the `disk:` block, then add
-`SHEETS_WEBHOOK_URL` and `SHEETS_SECRET` in the Render dashboard's Environment
-tab. See [DEPLOY.md](DEPLOY.md).
+Because durable data lives in the Sheet, the app needs **no persistent disk** —
+the host's filesystem can be ephemeral. Deploy to any Node host, set
+`SHEETS_WEBHOOK_URL` + `SHEETS_SECRET` (plus `ADMIN_PASSWORD` and
+`ADMIN_TOKEN_SECRET`), and the leaderboard and exports read straight from your
+Sheet across restarts and redeploys.
 
 ## Getting the data out
 

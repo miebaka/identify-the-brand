@@ -1,7 +1,7 @@
 # IDENTIFY THE BRAND
 
 A fast-paced fragmented-logo recognition game. 20 modified brand logos, one at
-a time, 15 seconds each. Server-authoritative timing and scoring, CSV
+a time, 10 seconds each. Server-authoritative timing and scoring, CSV
 persistence, and an admin export dashboard.
 
 **Stack:** Node.js + Express (no framework on the client), vanilla HTML/CSS/JS,
@@ -202,15 +202,25 @@ this is a documented limitation, not silent data loss.
 
 ## Deployment
 
-Any Node host with **persistent** storage (Railway, Render, Fly, a VPS). Do not
-put the authoritative CSV on ephemeral storage. Set `DATA_DIR` to a mounted
-volume, or adapt `csv.js` to object storage (S3/R2) if the platform has no
-volume. Set `TRUST_PROXY=1` behind a reverse proxy so rate limiting sees real
-client IPs. Serve over HTTPS.
+Use the **Google Sheets** backend so durable data lives in a Sheet you own — no
+database and **no persistent disk required**. Follow [SHEETS.md](SHEETS.md) to
+create the Sheet + webhook, then run the app on any Node host with these
+environment variables:
 
 ```bash
-NODE_ENV=production ADMIN_PASSWORD=... ADMIN_TOKEN_SECRET=... DATA_DIR=/data npm start
+NODE_ENV=production \
+ADMIN_PASSWORD=... ADMIN_TOKEN_SECRET=... \
+SHEETS_WEBHOOK_URL=... SHEETS_SECRET=... \
+TRUST_PROXY=1 npm start
 ```
+
+Because the leaderboard and exports read from the Sheet, the host's filesystem
+can be ephemeral. Set `TRUST_PROXY=1` behind a reverse proxy so rate limiting
+sees real client IPs, and serve over HTTPS.
+
+> Without the Sheets env vars the app falls back to local CSV, which then does
+> need persistent storage — set `DATA_DIR` to a durable path. The Sheets path is
+> the recommended, zero-disk setup.
 
 ---
 
