@@ -1,7 +1,7 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
-  command = "npm run validate:logos"
+  command = "npm run validate:logos && npm --prefix netlify/functions install --omit=dev"
 
 [functions]
   node_bundler = "esbuild"
