@@ -12,13 +12,9 @@ function assetPath(logo) {
   const brand = logo.brand;
   const candidates = [
     logo.assetFile,
-    `${logo.id}.svg`,
-    `${brand}_black.svg`,
-    `${brand}.svg`,
-    `${brand.replace(/\s+/g, '_')}_black.svg`,
-    `${brand.replace(/\s+/g, '')}_black.svg`,
-    `${brand.toLowerCase()}_black.svg`,
-    `${brand.toLowerCase()}.svg`,
+    `${logo.id}.svg`, `${brand}_black.svg`, `${brand}.svg`,
+    `${brand.replace(/\s+/g, '_')}_black.svg`, `${brand.replace(/\s+/g, '')}_black.svg`,
+    `${brand.toLowerCase()}_black.svg`, `${brand.toLowerCase()}.svg`,
   ].filter(Boolean);
   for (const name of [...new Set(candidates)]) {
     const p = path.join(dir, name);
@@ -91,7 +87,8 @@ function buildMask(regions, id) {
   return `<mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="800" height="800"><rect width="800" height="800" fill="black"/>${shapes}</mask>`;
 }
 
-function fragmentSvg(logo) {
+// Exported for the deployment validator: this is the canonical fragment renderer.
+export function fragmentSvg(logo) {
   const maskId = `mask-${logo.id}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><defs>${buildMask(logo.reveal, maskId)}</defs><g mask="url(#${maskId})">${logo.asset.inner}</g></svg>`;
 }
@@ -101,10 +98,7 @@ export async function fragmentForClient(logo) {
   const sharp = (await import('sharp')).default;
   const png = await sharp(Buffer.from(fragmentSvg(logo)), { density: 144 })
     .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .grayscale()
-    .threshold(128)
-    .png()
-    .toBuffer();
+    .grayscale().threshold(128).png().toBuffer();
   const uri = `data:image/png;base64,${png.toString('base64')}`;
   const out = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800"><image width="800" height="800" href="${uri}"/></svg>`;
   RASTER_CACHE.set(logo.id, out);
