@@ -5,7 +5,11 @@
 
 [functions]
   node_bundler = "esbuild"
+  included_files = []
   external_node_modules = ["sharp"]
+
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
 
 [[redirects]]
   from = "/api/*"
