@@ -1,0 +1,25 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+  command = "npm run validate:logos"
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["express", "sharp"]
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/healthz"
+  to = "/.netlify/functions/api/healthz"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
