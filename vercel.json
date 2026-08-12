@@ -4,7 +4,8 @@
   "functions": {
     "server.js": {
       "includeFiles": [
-        "public/**"
+        "public/**",
+        "data/**"
       ],
       "maxDuration": 60
     }
