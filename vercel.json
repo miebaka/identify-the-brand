@@ -1,4 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run validate:logos"
+  "buildCommand": "npm run validate:logos",
+  "functions": {
+    "server.js": {
+      "includeFiles": [
+        "data/**",
+        "public/assets/logos/**"
+      ]
+    }
+  }
 }
