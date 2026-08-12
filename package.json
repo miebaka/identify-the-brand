@@ -1,7 +1,7 @@
 {
   "name": "identify-the-brand",
   "version": "1.0.0",
-  "description": "IDENTIFY THE BRAND — a fast-paced fragmented-logo recognition game. Node/Express + CSV/Google Sheets persistence.",
+  "description": "IDENTIFY THE BRAND — a fast-paced fragmented-logo recognition game. Node/Express + Google Sheets persistence.",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -12,14 +12,13 @@
     "test:watch": "node --test --watch test/*.test.js",
     "test:e2e": "playwright test"
   },
-  "engines": { "node": ">=18" },
+  "engines": { "node": "24.x" },
   "dependencies": {
     "compression": "^1.7.4",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
-    "serverless-http": "^3.2.0",
     "sharp": "^0.35.3"
   },
   "license": "UNLICENSED",
