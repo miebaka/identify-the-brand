@@ -19,6 +19,7 @@
   status = 200
   force = true
 
+# Client-side fallback only applies when a matching static file is absent.
 [[redirects]]
   from = "/*"
   to = "/index.html"
