@@ -73,11 +73,6 @@ export function loadRegistry() {
 export function getLogo(id) { return loadRegistry().get(id); }
 export function allLogos() { return [...loadRegistry().values()]; }
 
-// Generate a fresh obstruction pattern for each question. The logo remains a
-// complete white SVG underneath; the dark shapes sit above it and obscure
-// sections. This makes the challenge feel like a physical mask rather than a
-// logo that has been permanently cut into pieces. The server chooses the
-// pattern so refreshes/replays do not produce the same obstruction every time.
 function buildObstructionMask(id, difficulty) {
   const count = difficulty === 'easy' ? 3 : difficulty === 'medium' ? 5 : 7;
   const shapes = [];
@@ -96,8 +91,9 @@ function buildObstructionMask(id, difficulty) {
 }
 
 function whiteArtwork(inner) {
-  // CSS !important is used so source SVG presentation attributes cannot
-  // override the monochrome gameplay treatment.
+  // Force every rendered SVG element to white, including the final revealed
+  // artwork. !important prevents source SVG presentation attributes from
+  // restoring the original brand colours.
   return `<style>*{fill:#fff !important;stroke:#fff !important;color:#fff !important}</style>${inner}`;
 }
 
@@ -107,7 +103,7 @@ export function fragmentSvg(logo) {
 
 export async function fragmentForClient(logo) {
   // Do not cache fragments: the obstruction pattern is intentionally different
-  // for every question instance. Full logo artwork remains server-controlled.
+  // for every question instance.
   const sharp = (await import('sharp')).default;
   const png = await sharp(Buffer.from(fragmentSvg(logo)), { density: 144 })
     .resize(800, 800, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -118,5 +114,7 @@ export async function fragmentForClient(logo) {
 }
 
 export function fullSvg(logo) {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">${logo.asset.inner}</svg>`;
+  // The revealed artwork must use the same monochrome treatment as the masked
+  // artwork. Never expose the original source colours to the client.
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">${whiteArtwork(logo.asset.inner)}</svg>`;
 }
