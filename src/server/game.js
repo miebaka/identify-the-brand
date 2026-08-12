@@ -1,25 +1,22 @@
-// Pure game logic: normalization, answer matching, shuffling, scoring.
-// No I/O here so this is trivially testable.
+// Pure game logic: normalization, answer matching, secure randomisation,
+// difficulty interleaving, scoring, and performance messaging.
+import { randomInt } from 'node:crypto';
 import config from './config.js';
 
-// Normalize an answer for comparison (spec §9):
-//   trim, lowercase, unicode NFKD fold (strip diacritics), collapse spaces,
-//   drop harmless punctuation (keep letters/numbers/spaces).
 export function normalize(input) {
   return String(input ?? '')
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '') // strip combining marks
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/['’`.,!?/\\_-]/g, ' ') // harmless punctuation -> space
+    .replace(/['’`.,!?/\\_-]/g, ' ')
     .replace(/&/g, ' and ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-// Levenshtein distance, capped early — we only ever care about <= 1.
 export function levenshtein(a, b) {
   if (a === b) return 0;
-  if (Math.abs(a.length - b.length) > 1) return 2; // > 1, exact value irrelevant
+  if (Math.abs(a.length - b.length) > 1) return 2;
   const m = a.length;
   const n = b.length;
   let prev = Array.from({ length: n + 1 }, (_, i) => i);
@@ -35,69 +32,61 @@ export function levenshtein(a, b) {
   return prev[n];
 }
 
-// Decide whether an answer matches. Conservative typo tolerance:
-//   - exact normalized match always wins
-//   - Levenshtein distance 1 allowed ONLY when the accepted answer is >= 6
-//     chars (avoids "x" -> "y" style false positives on short brands)
 export function isCorrect(rawAnswer, acceptableAnswers) {
   const guess = normalize(rawAnswer);
   if (!guess) return false;
-  for (const accepted of acceptableAnswers) {
+  return acceptableAnswers.some((accepted) => {
     const target = normalize(accepted);
-    if (guess === target) return true;
-    if (target.length >= 6 && levenshtein(guess, target) <= 1) return true;
-  }
-  return false;
+    return guess === target || (target.length >= 6 && levenshtein(guess, target) <= 1);
+  });
 }
 
-// Fisher-Yates, seeded by crypto for fairness (spec §16). Returns a new array.
+// Fisher-Yates with crypto.randomInt. Quiz ordering does not need secrecy, but
+// using a CSPRNG removes biased/predictable Math.random() behaviour entirely.
 export function shuffle(array) {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
 }
 
-// Interleave difficulties so runs of the same difficulty are broken up
-// (spec §16: "Easy/Medium/Hard must be interleaved. Do not group difficulty").
-// Strategy: shuffle within each difficulty, then weave by proportional spacing.
+// Weighted random interleaving prevents adjacent repeats and avoids obvious
+// Easy→Medium→Hard blocks while still allowing each tier to appear naturally.
 export function interleaveByDifficulty(logos) {
-  const buckets = { easy: [], medium: [], hard: [] };
-  for (const l of logos) buckets[l.difficulty].push(l);
-  for (const k of Object.keys(buckets)) buckets[k] = shuffle(buckets[k]);
+  const buckets = {
+    easy: shuffle(logos.filter((l) => l.difficulty === 'easy')),
+    medium: shuffle(logos.filter((l) => l.difficulty === 'medium')),
+    hard: shuffle(logos.filter((l) => l.difficulty === 'hard')),
+  };
+  const remaining = Object.fromEntries(Object.entries(buckets).map(([k, v]) => [k, v.length]));
+  const result = [];
+  let previous = null;
 
-  // Assign each item a target position spread evenly across [0,1), then sort.
-  const placed = [];
-  for (const k of Object.keys(buckets)) {
-    const arr = buckets[k];
-    arr.forEach((item, i) => {
-      const pos = (i + 0.5) / arr.length + Math.random() * 0.001; // tie-break
-      placed.push({ item, pos });
-    });
-  }
-  placed.sort((a, b) => a.pos - b.pos);
+  while (result.length < logos.length) {
+    const available = Object.keys(buckets).filter((d) => remaining[d] > 0);
+    let candidates = available.filter((d) => d !== previous);
+    if (!candidates.length) candidates = available;
 
-  // Guard against accidental 3-in-a-row of the same difficulty by a light swap.
-  const order = placed.map((p) => p.item);
-  for (let i = 2; i < order.length; i++) {
-    if (
-      order[i].difficulty === order[i - 1].difficulty &&
-      order[i].difficulty === order[i - 2].difficulty
-    ) {
-      for (let j = i + 1; j < order.length; j++) {
-        if (order[j].difficulty !== order[i].difficulty) {
-          [order[i], order[j]] = [order[j], order[i]];
-          break;
-        }
+    const total = candidates.reduce((sum, d) => sum + remaining[d], 0);
+    let pick = randomInt(total);
+    let chosen = candidates[candidates.length - 1];
+    for (const d of candidates) {
+      if (pick < remaining[d]) {
+        chosen = d;
+        break;
       }
+      pick -= remaining[d];
     }
+
+    result.push(buckets[chosen].pop());
+    remaining[chosen] -= 1;
+    previous = chosen;
   }
-  return order;
+  return result;
 }
 
-// Score a completed set of answers.
 export function tallyScore(answers) {
   let score = 0;
   let correct = 0;
@@ -108,28 +97,24 @@ export function tallyScore(answers) {
     medium: { correct: 0, total: 0, earned: 0, possible: 0 },
     hard: { correct: 0, total: 0, earned: 0, possible: 0 },
   };
+
   for (const a of answers) {
     const d = byDifficulty[a.difficulty];
     d.total += 1;
     d.possible += a.pointsPossible;
-    if (a.timedOut) {
-      timedOut += 1;
-    } else if (a.correct) {
+    if (a.timedOut) timedOut += 1;
+    else if (a.correct) {
       correct += 1;
       score += a.pointsEarned;
       d.correct += 1;
       d.earned += a.pointsEarned;
-    } else {
-      incorrect += 1;
-    }
+    } else incorrect += 1;
   }
+
   const percentage = Math.round((score / config.game.totalPossibleScore) * 100);
   return { score, correct, incorrect, timedOut, percentage, byDifficulty };
 }
 
-// Performance message tiers (spec §42). Derived from the max score so they
-// stay correct if the distribution changes — a genuine perfect game always
-// reads "Perfect score."
 export function performanceMessage(score) {
   const max = config.game.totalPossibleScore;
   const pct = max ? score / max : 0;
