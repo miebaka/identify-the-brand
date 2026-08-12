@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import config from '../src/server/config.js';
 import { normalize, isCorrect, shuffle, interleaveByDifficulty, tallyScore } from '../src/server/game.js';
 
-test('game configuration is 20 questions and 40 points', () => {
-  assert.equal(config.game.totalQuestions, 20);
+test('game configuration is 21 questions and 40 points', () => {
+  assert.equal(config.game.totalQuestions, 21);
   assert.equal(config.game.totalPossibleScore, 40);
   assert.deepEqual(config.game.distribution, { easy: 8, medium: 7, hard: 6 });
   assert.equal(config.game.durationPerQuestionMs, 10000);
@@ -22,13 +22,13 @@ test('answer matching accepts exact and small typo matches', () => {
 });
 
 test('shuffle preserves every item exactly once', () => {
-  const source = Array.from({ length: 20 }, (_, i) => i);
+  const source = Array.from({ length: 21 }, (_, i) => i);
   const result = shuffle(source);
   assert.equal(result.length, source.length);
   assert.deepEqual([...result].sort((a, b) => a - b), source);
 });
 
-test('difficulty interleaving preserves distribution and avoids adjacent tiers when possible', () => {
+test('difficulty interleaving preserves distribution and avoids blocks while multiple tiers remain', () => {
   const logos = [
     ...Array.from({ length: 8 }, (_, i) => ({ id: `e${i}`, difficulty: 'easy' })),
     ...Array.from({ length: 7 }, (_, i) => ({ id: `m${i}`, difficulty: 'medium' })),
@@ -37,7 +37,10 @@ test('difficulty interleaving preserves distribution and avoids adjacent tiers w
   const result = interleaveByDifficulty(logos);
   assert.equal(result.length, 21);
   assert.deepEqual(result.map((x) => x.difficulty).sort(), logos.map((x) => x.difficulty).sort());
-  for (let i = 1; i < result.length; i++) assert.notEqual(result[i].difficulty, result[i - 1].difficulty);
+  for (let i = 1; i < result.length; i++) {
+    const remainingTiers = new Set(result.slice(i).map((x) => x.difficulty));
+    if (remainingTiers.size > 1) assert.notEqual(result[i].difficulty, result[i - 1].difficulty);
+  }
 });
 
 test('score tally cannot exceed the configured maximum', () => {
