@@ -1,6 +1,6 @@
-// IDENTIFY THE BRAND — Express application + local development bootstrap.
-// In production on Netlify, the same Express app is wrapped by
-// netlify/functions/api.js and invoked as a serverless function.
+// IDENTIFY THE BRAND — Express application.
+// Vercel detects this Express entry point and deploys it as the Node.js backend.
+// Running `npm start` locally still starts a normal HTTP server.
 import express from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -19,7 +19,7 @@ if (warnings.length && !config.isProd) {
 }
 
 const app = express();
-if (config.trustProxy || process.env.NETLIFY) app.set('trust proxy', 1);
+if (config.trustProxy || process.env.VERCEL) app.set('trust proxy', 1);
 app.disable('x-powered-by');
 
 app.use(
@@ -91,9 +91,8 @@ process.on('uncaughtException', (err) => {
   console.error('[uncaughtException]', err.message);
 });
 
-// Initialise persistence once per warm serverless runtime. Netlify functions
-// are ephemeral, so the durable Google Sheets backend should be configured in
-// production. Local CSV remains useful for local development/fallback.
+// Initialise persistence once per warm Vercel instance. Google Sheets is the
+// durable production backend; local CSV remains available for local development.
 const ready = initPersistence()
   .then(() => {
     startJanitor();
@@ -105,10 +104,8 @@ const ready = initPersistence()
 
 app.locals.ready = ready;
 
-// Only open a TCP listener when running the traditional local Express server.
-// Avoid top-level await so Netlify's esbuild/CommonJS function bundler can
-// package this module reliably.
-if (!process.env.NETLIFY) {
+// Vercel owns the HTTP server. Only listen when running locally.
+if (!process.env.VERCEL) {
   ready.then(() => {
     app.listen(config.port, () => {
       console.log(`IDENTIFY THE BRAND running on http://localhost:${config.port}`);
