@@ -26,29 +26,31 @@ router.post('/register', registrationLimiter, (req, res) => {
 async function questionPayload(q, session) {
   const logo = getLogo(q.logoId);
   const elapsedMs = session.questionStartedAt ? Math.max(0, Date.now() - session.questionStartedAt) : 0;
-  return {
-    number: q.number,
-    total: q.total,
-    logoId: q.logoId,
-    points: q.points,
-    durationMs: Math.max(0, config.game.durationPerQuestionMs - elapsedMs),
-    elapsedMs,
-    fragmentSvg: await fragmentForClient(logo),
-  };
+  return { number: q.number, total: q.total, logoId: q.logoId, points: q.points, durationMs: Math.max(0, config.game.durationPerQuestionMs - elapsedMs), elapsedMs, fragmentSvg: await fragmentForClient(logo) };
 }
 
 router.post('/start', wrap(async (req, res) => {
   const session = getSession(req.body?.sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found. Please restart.' });
   if (session.status === 'completed') return res.status(409).json({ error: 'This game is already complete.' });
-  // Idempotent start: this is also the refresh/reconnect path. The browser may
-  // safely call /start again without creating a new question or resetting time.
+
+  // If the previous question was already submitted before a refresh, advance
+  // instead of returning an answered question. This makes refresh safe during
+  // the feedback/transition window too.
   if (session.currentIndex >= 0) {
-    const logoId = session.assignedLogos[session.currentIndex];
-    if (session.submittedLogoIds.has(logoId)) return res.status(409).json({ error: 'Current question has already been answered.' });
-    const q = { number: session.currentIndex + 1, total: session.assignedLogos.length, logoId, points: getLogo(logoId).points };
+    const currentLogoId = session.assignedLogos[session.currentIndex];
+    if (session.submittedLogoIds.has(currentLogoId)) {
+      const next = nextQuestion(session);
+      if (!next) {
+        const summary = await completeSession(session);
+        return res.json({ done: true, results: { ...summary, message: performanceMessage(summary.score) } });
+      }
+      return res.json({ question: await questionPayload(next, session), resumed: true, advanced: true });
+    }
+    const q = { number: session.currentIndex + 1, total: session.assignedLogos.length, logoId: currentLogoId, points: getLogo(currentLogoId).points };
     return res.json({ question: await questionPayload(q, session), resumed: true });
   }
+
   const q = nextQuestion(session);
   res.json({ question: await questionPayload(q, session), resumed: false });
 }));
