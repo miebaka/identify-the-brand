@@ -15,9 +15,10 @@ test('normalization handles case, punctuation and accents', () => {
   assert.equal(normalize('  NIKE  '), 'nike');
 });
 
-test('answer matching accepts exact and one-character typo matches', () => {
+test('answer matching accepts exact answers and one-character typos for long names', () => {
   assert.equal(isCorrect('Nike', ['nike']), true);
-  assert.equal(isCorrect('Nikee', ['nike']), true);
+  assert.equal(isCorrect('Mailchim', ['mailchimp']), true);
+  assert.equal(isCorrect('Mailxhim', ['mailchimp']), true);
   assert.equal(isCorrect('Nik', ['nike']), false);
 });
 
