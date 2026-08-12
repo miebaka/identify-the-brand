@@ -1,10 +1,10 @@
 // Central configuration. Netlify Functions provide environment variables at runtime.
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..', '..');
+// Netlify and local Node both execute from the project root. Using cwd avoids
+// import.meta.url so the module can be safely bundled as CommonJS by Netlify.
+const ROOT = process.cwd();
 dotenv.config({ path: path.join(ROOT, '.env') });
 
 function bool(v, def = false) {
