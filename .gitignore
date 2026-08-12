@@ -1,0 +1,8 @@
+node_modules/
+.env
+.DS_Store
+npm-debug.log*
+
+# Persistence + backups must never be committed.
+data/*.csv
+data/backups/

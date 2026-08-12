@@ -1,0 +1,118 @@
+/* ============================================================
+   DESIGN TOKENS — Tactical Telemetry (industrial brutalist, dark)
+   The spec's palette (#0A0A0A / phosphor / hazard-red) IS the
+   Tactical Telemetry substrate, so the two briefs converge here.
+   ============================================================ */
+:root {
+  /* Substrate — deactivated CRT, never pure #000. */
+  --bg: #0a0a0a;
+  --bg-surface: #121212;
+  --bg-elevated: #1a1a1a;
+  --bg-inset: #060606;
+
+  /* Phosphor text. */
+  --fg: #eaeaea;
+  --fg-dim: #9a9a9a;
+  --fg-muted: #5a5a5a;
+  --fg-faint: #333333;
+
+  /* Hairlines — the blueprint grid. */
+  --line: #242424;
+  --line-bright: #383838;
+
+  /* The ONE accent: aviation / hazard red. */
+  --accent: #e61919;
+  --accent-bright: #ff2a2a;
+
+  /* Semantic states (used sparingly, never as decoration). */
+  --correct: #4af626; /* terminal green — reserved for one job: a right answer */
+  --warning: #f5a623; /* amber — timer 5-3s */
+  --danger: var(--accent); /* red — timer 2-0s, wrong answers */
+
+  /* Type. System stacks (no external font links; CSP-safe). */
+  --font-macro: 'Helvetica Neue', 'Arial Narrow', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono',
+    'Roboto Mono', Menlo, Consolas, monospace;
+
+  /* Spacing — 4px base (spec §49). */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s6: 24px;
+  --s8: 32px;
+  --s12: 48px;
+  --s16: 64px;
+  --s24: 96px;
+
+  --measure: 720px; /* desktop max-width (spec §50) */
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1); /* expressive entrance (spec §55) */
+  --z-grain: 60;
+  --z-scan: 55;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  /* Mechanical grain — global, low opacity. */
+  position: relative;
+}
+
+/* Grain + scanlines: fixed, pointer-events none, GPU-cheap (skill §7, §6.E). */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scan);
+  pointer-events: none;
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.14) 3px,
+    rgba(0, 0, 0, 0.14) 4px
+  );
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Reduced motion: kill grain shimmer + all decorative animation (spec §53). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
