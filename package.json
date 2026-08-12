@@ -8,8 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "validate:logos": "node scripts/validate-logos.js",
-    "test": "node --test test/**/*.test.js",
-    "test:watch": "node --test --watch test/**/*.test.js",
+    "test": "node --test test/*.test.js",
+    "test:watch": "node --test --watch test/*.test.js",
     "test:e2e": "playwright test"
   },
   "engines": { "node": ">=18" },
