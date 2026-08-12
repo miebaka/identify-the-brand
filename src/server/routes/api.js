@@ -14,6 +14,8 @@ const registrationLimiter = rateLimit({ windowMs: 60 * 1000, limit: 5, standardH
 function cleanName(v) { return typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : ''; }
 function validName(v) { return v.length >= 1 && v.length <= 60 && /^[\p{L}\p{M}][\p{L}\p{M} '.-]*$/u.test(v); }
 
+router.get('/healthz', (req, res) => res.json({ ok: true }));
+
 router.post('/register', registrationLimiter, (req, res) => {
   const firstName = cleanName(req.body?.firstName);
   const surname = cleanName(req.body?.surname);
@@ -34,9 +36,6 @@ router.post('/start', wrap(async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found. Please restart.' });
   if (session.status === 'completed') return res.status(409).json({ error: 'This game is already complete.' });
 
-  // If the previous question was already submitted before a refresh, advance
-  // instead of returning an answered question. This makes refresh safe during
-  // the feedback/transition window too.
   if (session.currentIndex >= 0) {
     const currentLogoId = session.assignedLogos[session.currentIndex];
     if (session.submittedLogoIds.has(currentLogoId)) {
