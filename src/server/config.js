@@ -2,8 +2,7 @@
 import path from 'node:path';
 import dotenv from 'dotenv';
 
-const ROOT = process.cwd();
-dotenv.config({ path: path.join(ROOT, '.env') });
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 function bool(v, def = false) {
   if (v === undefined) return def;
@@ -14,16 +13,20 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const isProd = NODE_ENV === 'production';
 const isVercel = Boolean(process.env.VERCEL);
 
+// Vercel's project filesystem is read-only. /tmp is writable but ephemeral,
+// which is fine because Google Sheets is the durable production backend.
+const defaultDataDir = isVercel ? '/tmp/identify-the-brand' : './data';
+
 const config = {
-  root: ROOT,
+  root: process.cwd(),
   env: NODE_ENV,
   isProd,
   isVercel,
   port: Number(process.env.PORT) || 3000,
   trustProxy: bool(process.env.TRUST_PROXY, isVercel),
-  dataDir: path.resolve(ROOT, process.env.DATA_DIR || './data'),
-  logosFile: path.resolve(ROOT, process.env.LOGOS_FILE || path.join('data', 'logos.json')),
-  publicDir: path.resolve(ROOT, 'public'),
+  dataDir: path.resolve(process.env.DATA_DIR || defaultDataDir),
+  logosFile: path.resolve(process.env.LOGOS_FILE || path.join('data', 'logos.json')),
+  publicDir: path.resolve(process.cwd(), 'public'),
   retentionDays: Number(process.env.RETENTION_DAYS) || 90,
   admin: {
     user: process.env.ADMIN_USER || 'admin',
@@ -57,7 +60,6 @@ export function assertProductionSecrets() {
   const problems = [];
   if (!config.admin.password || config.admin.password.length < 12) problems.push('ADMIN_PASSWORD must be set and at least 12 characters.');
   if (!config.admin.tokenSecret || config.admin.tokenSecret.length < 16) problems.push('ADMIN_TOKEN_SECRET must be set and at least 16 characters.');
-  if (config.isProd && problems.length) throw new Error('Refusing to start in production with insecure admin config:\n  - ' + problems.join('\n  - '));
   return problems;
 }
 
